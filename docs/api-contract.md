@@ -1,8 +1,8 @@
 # CoreLog API Contract (shared by mobile and web)
 
 This document is the **single source of truth** for the REST and SignalR contract used by
-`mobile/` and `web/`. Both READMEs must reproduce the examples below unchanged so the two
-clients stay compatible with the same CoreLog backend.
+`mobile/` and `web/`. Both READMEs reference the examples below so the two clients stay
+compatible with the same CoreLog backend.
 
 > The CoreLog backend endpoints below are **not implemented in this repository**. They are
 > documented here so the mobile app and the web dashboard can be built and tested against
@@ -12,7 +12,8 @@ clients stay compatible with the same CoreLog backend.
 
 * All JSON fields use **snake_case** (`vehicle_id`, `timestamp_utc`, `command_id`, ...).
 * Timestamps are ISO-8601 UTC (`2026-11-12T11:20:00Z`).
-* Base URL comes from `CORELOG_BASE_URL` (mobile) / `VITE_CORELOG_BASE_URL` (web).
+* Base URL comes from `CORELOG_BASE_URL` (mobile) / `CoreLog:BaseUrl`
+  (`CoreLog__BaseUrl` in containers) for the web MVC app.
 * Errors are RFC 9110 problem+json shaped: `{ "title": "...", "status": 400, "errors": { ... } }`.
 
 ---

@@ -1,0 +1,254 @@
+@model CommandCenterViewModel
+@{
+    ViewData["Title"] = "Comandos";
+}
+
+@functions {
+    static string PayloadText(Dictionary<string, object?> payload) =>
+        payload.Count == 0
+            ? "—"
+            : string.Join(", ", payload.Select(pair => $"{pair.Key}={pair.Value}"));
+}
+
+<div class="page-heading">
+    <div>
+        <h1>Central de comandos</h1>
+        <p class="muted">Envie comandos, consulte o histórico e gerencie rastreadores.</p>
+    </div>
+    <a class="button button-ghost" asp-controller="Home" asp-action="Index">Voltar ao dashboard</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-error">Falha ao consultar o CoreLog: @Model.Error</div>
+}
+
+<div id="command-center"
+     data-hub-url="@Model.HubUrl"
+     data-selected-device="@Model.SelectedDeviceId">
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Enviar comando</h2>
+            <span class="muted small">POST /api/devices/{deviceId}/commands</span>
+        </div>
+
+        <form asp-action="Dispatch" method="post" class="form-grid">
+            <label>
+                <span>Veículo</span>
+                <select name="deviceId" required>
+                    <option value="">Selecione…</option>
+                    @foreach (var device in Model.Devices)
+                    {
+                        <option value="@device.VehicleId" selected="@(device.VehicleId == Model.SelectedDeviceId)">
+                            @device.DisplayName (@device.VehicleId)
+                        </option>
+                    }
+                </select>
+            </label>
+
+            <label>
+                <span>Comando</span>
+                <select name="commandType" id="commandType" required>
+                    <option value="SET_FREQUENCY">SET_FREQUENCY — alterar frequência</option>
+                    <option value="SILENCE">SILENCE — silenciar</option>
+                    <option value="REACTIVATE">REACTIVATE — reativar</option>
+                    <option value="REQUEST_IMMEDIATE_POSITION">REQUEST_IMMEDIATE_POSITION — posição imediata</option>
+                </select>
+            </label>
+
+            <label class="field" data-command-field="SET_FREQUENCY">
+                <span>Intervalo (segundos)</span>
+                <input type="number" name="seconds" min="5" value="30" />
+            </label>
+
+            <label class="field" data-command-field="SILENCE">
+                <span>Duração do silêncio (segundos)</span>
+                <input type="number" name="durationSeconds" min="30" value="600" />
+            </label>
+
+            <div class="form-actions">
+                <button class="button" type="submit">Enviar comando</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Histórico de comandos</h2>
+            <form asp-action="Index" method="get" class="inline-form">
+                <select name="deviceId" required>
+                    <option value="">Selecione um veículo…</option>
+                    @foreach (var device in Model.Devices)
+                    {
+                        <option value="@device.VehicleId" selected="@(device.VehicleId == Model.SelectedDeviceId)">
+                            @device.DisplayName (@device.VehicleId)
+                        </option>
+                    }
+                </select>
+                <button class="button button-ghost" type="submit">Carregar</button>
+            </form>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Criado</th>
+                        <th>Tipo</th>
+                        <th>Payload</th>
+                        <th>Status</th>
+                        <th>Reconhecido</th>
+                        <th>Erro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var command in Model.Commands)
+                {
+                    <tr data-command-id="@command.CommandId">
+                        <td class="mono">@command.CreatedAtUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss")</td>
+                        <td>@command.CommandType</td>
+                        <td class="mono small">@PayloadText(command.Payload)</td>
+                        <td><span class="badge status-command js-command-status">@command.Status</span></td>
+                        <td class="mono small js-command-ack">@command.AcknowledgedAtUtc?.ToLocalTime().ToString("HH:mm:ss")</td>
+                        <td class="small">@(command.Error ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.Commands.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="empty">
+                            @(Model.SelectedDeviceId is null
+                                ? "Selecione um veículo para ver o histórico."
+                                : "Nenhum comando registrado para este veículo.")
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Registrar rastreador</h2>
+            <span class="muted small">POST /api/trackers</span>
+        </div>
+
+        <form asp-action="RegisterTracker" method="post" class="form-grid">
+            <label>
+                <span>Tipo</span>
+                <select name="Type" id="trackerType" required>
+                    <option value="Sascar">Sascar</option>
+                    <option value="Omnilink">Omnilink</option>
+                    <option value="Autotrac">Autotrac</option>
+                    <option value="ChineseGPS">ChineseGPS</option>
+                    <option value="MobileApp">MobileApp</option>
+                </select>
+            </label>
+
+            <label>
+                <span>Nome</span>
+                <input type="text" name="Name" placeholder="Fleet A — placa 12-AB-34" required />
+            </label>
+
+            <label>
+                <span>Veículo</span>
+                <input type="text" name="VehicleId" placeholder="VEH-010" required />
+            </label>
+
+            <label>
+                <span>Intervalo de polling (s)</span>
+                <input type="number" name="PollingIntervalSeconds" value="30" min="5" />
+            </label>
+
+            <label class="checkbox">
+                <input type="checkbox" name="Enabled" value="true" checked />
+                <span>Ativo</span>
+            </label>
+
+            <div class="credentials" data-tracker-type="Sascar">
+                <label><span>Placa</span><input type="text" name="Plate" /></label>
+                <label><span>Usuário de integração</span><input type="text" name="IntegrationUser" /></label>
+                <label><span>Senha</span><input type="password" name="Password" /></label>
+            </div>
+
+            <div class="credentials" data-tracker-type="Omnilink">
+                <label><span>Fleet id externo</span><input type="text" name="ExternalFleetId" /></label>
+                <label><span>Usuário WSTT</span><input type="text" name="WsttUser" /></label>
+                <label><span>Senha WSTT</span><input type="password" name="WsttPassword" /></label>
+            </div>
+
+            <div class="credentials" data-tracker-type="Autotrac">
+                <label><span>Fleet id</span><input type="text" name="FleetId" /></label>
+                <label><span>API key</span><input type="password" name="ApiKey" /></label>
+            </div>
+
+            <div class="credentials" data-tracker-type="ChineseGPS">
+                <label><span>Device id (Traccar)</span><input type="text" name="TraccarDeviceId" /></label>
+                <label><span>Modelo do chip</span><input type="text" name="ChipModel" /></label>
+            </div>
+
+            <div class="credentials" data-tracker-type="MobileApp">
+                <label><span>FCM sender id (opcional)</span><input type="text" name="FcmSenderId" /></label>
+            </div>
+
+            <div class="form-actions">
+                <button class="button" type="submit">Registrar rastreador</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Rastreadores</h2>
+            <span class="muted small">@Model.Trackers.Count registrado(s)</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Nome</th>
+                        <th>Veículo</th>
+                        <th>Polling</th>
+                        <th>Ativo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var tracker in Model.Trackers)
+                {
+                    <tr>
+                        <td>@tracker.Type</td>
+                        <td>@tracker.Name</td>
+                        <td class="mono">@tracker.VehicleId</td>
+                        <td>@tracker.PollingIntervalSeconds s</td>
+                        <td>
+                            <span class="badge @(tracker.Enabled ? "status-online" : "status-offline")">
+                                @(tracker.Enabled ? "Ativo" : "Inativo")
+                            </span>
+                        </td>
+                        <td>
+                            <form asp-action="DeleteTracker" asp-route-trackerId="@tracker.TrackerId"
+                                  method="post" data-confirm="Remover este rastreador?">
+                                <button class="button button-small button-danger" type="submit">Remover</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Trackers.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="empty">Nenhum rastreador registrado.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/command-center.js" asp-append-version="true"></script>
+}

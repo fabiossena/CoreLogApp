@@ -1,0 +1,98 @@
+@model PanicIndexViewModel
+@{
+    ViewData["Title"] = "Pânico";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>Eventos de pânico</h1>
+        <p class="muted">Alertas de emergência enviados pelos dispositivos.</p>
+    </div>
+    <a class="button button-ghost" asp-controller="Home" asp-action="Index">Voltar ao dashboard</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
+{
+    <div class="alert alert-error">Falha ao consultar o CoreLog: @Model.Error</div>
+}
+
+<nav class="tabs">
+    <a class="@(Model.Filter == "pending" ? "active" : string.Empty)"
+       asp-action="Index" asp-route-filter="pending">Pendentes</a>
+    <a class="@(Model.Filter == "acknowledged" ? "active" : string.Empty)"
+       asp-action="Index" asp-route-filter="acknowledged">Reconhecidos</a>
+    <a class="@(Model.Filter == "all" ? "active" : string.Empty)"
+       asp-action="Index" asp-route-filter="all">Todos</a>
+</nav>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Quando</th>
+                    <th>Veículo</th>
+                    <th>Origem</th>
+                    <th>Última posição</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var panic in Model.Panics)
+            {
+                <tr>
+                    <td class="mono">@panic.TimestampUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                    <td>
+                        <strong>@panic.VehicleId</strong>
+                        <div class="muted small">@panic.EventId</div>
+                    </td>
+                    <td>@panic.Source</td>
+                    <td class="mono">
+                        @if (panic.LastKnownPosition is not null)
+                        {
+                            <span>@panic.LastKnownPosition.Latitude.ToString("F5"), @panic.LastKnownPosition.Longitude.ToString("F5")</span>
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </td>
+                    <td>
+                        @if (panic.Acknowledged)
+                        {
+                            <span class="badge status-online">Reconhecido</span>
+                            <div class="muted small">
+                                @panic.AcknowledgedBy · @panic.AcknowledgedAtUtc?.ToLocalTime().ToString("HH:mm:ss")
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="badge status-pending">Pendente</span>
+                        }
+                    </td>
+                    <td>
+                        @if (!panic.Acknowledged)
+                        {
+                            <form asp-action="Acknowledge" asp-route-panicId="@panic.PanicId" method="post">
+                                <input type="hidden" name="filter" value="@Model.Filter" />
+                                <button class="button button-small" type="submit">Reconhecer</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="muted small">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Panics.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="empty">Nenhum evento para este filtro.</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

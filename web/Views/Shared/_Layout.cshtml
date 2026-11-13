@@ -1,0 +1,52 @@
+@{
+    var path = Context.Request.Path.Value ?? "/";
+    string Active(string prefix) =>
+        path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    var message = TempData["Message"] as string;
+    var error = TempData["Error"] as string;
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · CoreLog</title>
+    <link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" asp-controller="Home" asp-action="Index">
+            <span class="brand-mark">CL</span>
+            <span>CoreLog</span>
+        </a>
+        <nav class="nav">
+            <a class="@Active("/dashboard")" asp-controller="Home" asp-action="Index">Dashboard</a>
+            <a class="@Active("/panics")" asp-controller="Panic" asp-action="Index">Pânico</a>
+            <a class="@Active("/commands")" asp-controller="CommandCenter" asp-action="Index">Comandos</a>
+        </nav>
+        <span class="topbar-tag">ASP.NET Core MVC</span>
+    </header>
+
+    <main class="page">
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert alert-success">@message</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-error">@error</div>
+        }
+
+        @RenderBody()
+    </main>
+
+    <footer class="footer">
+        <span>CoreLog · ASP.NET Core MVC (.NET 8) · server-rendered Razor + SignalR</span>
+    </footer>
+
+    <script src="~/lib/leaflet/leaflet.js"></script>
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

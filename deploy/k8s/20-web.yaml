@@ -49,21 +49,21 @@ spec:
               memory: 256Mi
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /health
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /health
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             runAsNonRoot: true
-            runAsUser: 101
+            runAsUser: 1654
+            runAsGroup: 1654
             capabilities:
               drop: ["ALL"]
 ---
@@ -104,5 +104,14 @@ spec:
             backend:
               service:
                 name: corelog-web
+                port:
+                  number: 8080
+          # The browser connects to CoreLog's SignalR hub directly; route it to
+          # the API Service (deployed from the CoreLog backend manifests).
+          - path: /hubs
+            pathType: Prefix
+            backend:
+              service:
+                name: corelog-api
                 port:
                   number: 8080

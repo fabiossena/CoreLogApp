@@ -1,0 +1,13 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Erro";
+}
+<section class="panel">
+    <h1>Algo deu errado</h1>
+    <p>O dashboard não conseguiu concluir a operação. Verifique a disponibilidade do CoreLog.</p>
+    @if (Model.ShowRequestId)
+    {
+        <p class="muted">Request ID: <code>@Model.RequestId</code></p>
+    }
+    <a class="button" asp-controller="Home" asp-action="Index">Voltar ao dashboard</a>
+</section>

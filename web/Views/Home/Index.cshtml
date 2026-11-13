@@ -1,0 +1,146 @@
+@model DashboardViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Dashboard";
+    var pendingPanics = Model.PendingPanics.Count;
+    var devicesJson = JsonSerializer.Serialize(Model.Devices);
+}
+
+@functions {
+    static string StatusClass(string status) => status switch
+    {
+        "Online" => "online",
+        "PossiblyOffline" => "possibly",
+        _ => "offline",
+    };
+
+    static string StatusText(string status) => status switch
+    {
+        "Online" => "Online",
+        "PossiblyOffline" => "Sem sinal",
+        _ => "Offline",
+    };
+
+    static string PositionText(PositionDto? position) =>
+        position is null ? "—" : $"{position.Latitude:F5}, {position.Longitude:F5}";
+
+    static string SpeedText(double? speed) => speed is null ? "—" : $"{speed.Value:F0} km/h";
+
+    static string UpdatedText(DateTimeOffset? timestamp) =>
+        timestamp is null ? "sem posição" : timestamp.Value.ToLocalTime().ToString("HH:mm:ss");
+}
+
+<div id="dashboard"
+     data-hub-url="@Model.HubUrl"
+     data-corelog-url="@Model.CoreLogBaseUrl">
+
+    @if (!string.IsNullOrWhiteSpace(Model.Error))
+    {
+        <div class="alert alert-error">
+            Falha ao consultar o CoreLog: @Model.Error
+            <span class="muted">(API: @Model.CoreLogBaseUrl)</span>
+        </div>
+    }
+
+    <section id="panic-banner" class="panic-banner @(pendingPanics == 0 ? "hidden" : string.Empty)">
+        <div class="panic-heading">
+            <h2>🚨 Pânico</h2>
+            <span id="panic-count" class="panic-count">@pendingPanics</span>
+            <a class="link" asp-controller="Panic" asp-action="Index">ver todos</a>
+        </div>
+        <div id="panic-list" class="panic-list">
+            @foreach (var panic in Model.PendingPanics)
+            {
+                <article class="panic-item" data-panic-id="@panic.PanicId">
+                    <div>
+                        <strong>@panic.VehicleId</strong>
+                        <span class="muted">@panic.TimestampUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss")</span>
+                        @if (panic.LastKnownPosition is not null)
+                        {
+                            <span class="muted">
+                                · @panic.LastKnownPosition.Latitude.ToString("F5"),
+                                @panic.LastKnownPosition.Longitude.ToString("F5")
+                            </span>
+                        }
+                    </div>
+                    <form asp-controller="Panic" asp-action="Acknowledge"
+                          asp-route-panicId="@panic.PanicId" method="post">
+                        <button class="button button-small" type="submit">Reconhecer</button>
+                    </form>
+                </article>
+            }
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <div class="panel map-panel">
+            <div class="panel-heading">
+                <h2>Frota em tempo real</h2>
+                <span id="hub-status" class="hub-status connecting">conectando…</span>
+            </div>
+            <div id="map" class="map"></div>
+            <p class="muted small">
+                Atualizações via SignalR (<code>/hubs/tracking</code>). Posições iniciais vêm
+                de <code>GET /api/devices</code>.
+            </p>
+        </div>
+
+        <div class="panel devices-panel">
+            <div class="panel-heading">
+                <h2>Veículos</h2>
+                <span class="muted small">@Model.Devices.Count no total</span>
+            </div>
+            <div class="table-wrap">
+                <table class="table" id="devices-table">
+                    <thead>
+                        <tr>
+                            <th>Veículo</th>
+                            <th>Status</th>
+                            <th>Região</th>
+                            <th>Última posição</th>
+                            <th>Velocidade</th>
+                            <th>Atualizado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var device in Model.Devices)
+                    {
+                        <tr data-vehicle-id="@device.VehicleId"
+                            data-status="@device.Status"
+                            data-lat="@device.LastPosition?.Latitude"
+                            data-lng="@device.LastPosition?.Longitude"
+                            data-speed="@device.LastPosition?.SpeedKmh"
+                            data-updated="@device.LastPosition?.TimestampUtc?.ToString("O")">
+                            <td>
+                                <strong>@device.DisplayName</strong>
+                                <div class="muted small">@device.VehicleId · @device.Source</div>
+                            </td>
+                            <td>
+                                <span class="badge status-@StatusClass(device.Status) js-status">
+                                    @StatusText(device.Status)
+                                </span>
+                            </td>
+                            <td>@(device.Region ?? "—")</td>
+                            <td class="mono js-position">@PositionText(device.LastPosition)</td>
+                            <td class="js-speed">@SpeedText(device.LastPosition?.SpeedKmh)</td>
+                            <td class="js-updated">@UpdatedText(device.LastPosition?.TimestampUtc)</td>
+                        </tr>
+                    }
+                    @if (Model.Devices.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="empty">Nenhum veículo retornado.</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <script id="initial-devices" type="application/json">@Html.Raw(devicesJson)</script>
+</div>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}
