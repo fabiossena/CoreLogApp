@@ -12,7 +12,7 @@ Two deliverables in one repository, both talking to the **CoreLog** backend
    Omnilink, Autotrac, Chinese GPS via Traccar, mobile app devices).
 
 ```
-mvvm-layered-app/
+CoreLogApp/
 ├── mobile/                 # React Native — MVVM + Layered
 ├── web/                    # React dashboard — Layered + MVVM hooks
 ├── docs/api-contract.md    # single source of truth for the REST/SignalR contract
@@ -305,4 +305,4 @@ cd mobile && npm test    # HomeViewModel, use cases (mocked repositories),
 | 3 | Implementar no backend os endpoints `/api/devices`, `/api/panic`, `/api/trackers` e os grupos SignalR `all-devices` | `docs/api-contract.md` |
 | 4 | Testar Android via **Internal App Sharing** | `store/README.md` §2 |
 | 5 | Testar iOS via **TestFlight** (macOS) | `store/README.md` §4 |
-| 6 | Evoluir o app simplificado de portfólio | [fabiossena/CoreLogApp](https://github.com/fabiossena/CoreLogApp) |
+| 6 | Evoluir o app simplificado de portfólio | [fabiossena/mvvm-layered-app](https://github.com/fabiossena/mvvm-layered-app) |

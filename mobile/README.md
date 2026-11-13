@@ -561,5 +561,5 @@ Detalhes de metadados, textos de loja e checklist completo:
 5. **iOS**: arquivar no Xcode e validar no **TestFlight** (seção 7).
 6. **App simplificado para portfólio**: a versão enxuta (somente MVVM + camadas,
    sem background/FCM/SQLite) está em
-   [fabiossena/CoreLogApp](https://github.com/fabiossena/CoreLogApp) e é onde as
-   próximas evoluções do app de posição serão feitas.
+   [fabiossena/mvvm-layered-app](https://github.com/fabiossena/mvvm-layered-app)
+   e é onde as próximas evoluções do app de posição serão feitas.
