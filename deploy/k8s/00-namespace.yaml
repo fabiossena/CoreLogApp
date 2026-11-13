@@ -1,0 +1,10 @@
+# ---------------------------------------------------------------------------
+# CoreLog Mobile + Web — namespace.
+#   kubectl apply -k deploy/k8s
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: corelog
+  labels:
+    app.kubernetes.io/part-of: corelog

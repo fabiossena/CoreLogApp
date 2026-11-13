@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# CoreLog Mobile + Web — configuration shared by every workload.
+# Values mirror docker-compose.yml so the two stay in sync.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: corelog-config
+  namespace: corelog
+  labels:
+    app.kubernetes.io/part-of: corelog
+data:
+  # CoreLog backend (the hexagonal-architecture repo) — Service DNS in cluster.
+  CORELOG_BASE_URL: "http://corelog-api.corelog.svc.cluster.local:8090"
+  SIGNALR_HUB_URL: "http://corelog-api.corelog.svc.cluster.local:8090/hubs/tracking"
+
+  # nginx reverse-proxy target for /api and /hubs (same origin as the SPA).
+  CORELOG_UPSTREAM: "http://corelog-api.corelog.svc.cluster.local:8090"
+  # Cluster DNS server used to resolve CORELOG_UPSTREAM lazily.
+  # Adjust to your distribution (kubeadm default: 10.96.0.10).
+  NGINX_RESOLVER: "10.96.0.10"
+
+  # OpenTelemetry collector Service (all workloads export here).
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.corelog.svc.cluster.local:4318"
+
+  # Backend behaviour knobs expected by the clients.
+  DEVICE_OFFLINE_TIMEOUT_MINUTES: "3"
+  BATCH_SIZE: "10"
+  POSITION_INTERVAL_SECONDS: "60"

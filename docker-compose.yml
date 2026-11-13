@@ -1,0 +1,155 @@
+# ---------------------------------------------------------------------------
+# CoreLog Mobile + Web — local stack
+#
+#   docker compose up --build
+#
+# Then open:
+#   Web dashboard ...... http://localhost:8085   (override with WEB_PORT)
+#   Grafana ............ http://localhost:3000   (admin / admin)
+#   Prometheus ......... http://localhost:9090
+#   OTLP gRPC .......... localhost:4317   |   OTLP HTTP: localhost:4318
+#   Loki ............... http://localhost:3100   |   Tempo: http://localhost:3200
+#
+# All services export OpenTelemetry (traces/logs/metrics) to the collector below.
+# The .NET CoreLog backend uses Serilog -> OpenTelemetry (see
+# observability/serilog-appsettings.example.json) and points at the same collector.
+# ---------------------------------------------------------------------------
+name: corelog-mvvm
+
+services:
+  # ---------------------------------------------------------------------------
+  # Web dashboard (static build served by nginx, reverse-proxies /api and /hubs
+  # to the CoreLog backend so the browser never talks to devices directly).
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # The browser bundle calls its own origin; nginx proxies /api + /hubs
+        # to CORELOG_UPSTREAM at runtime (see docker/nginx.conf.template).
+        CORELOG_BASE_URL: same-origin
+        SIGNALR_HUB_URL: /hubs/tracking
+    image: corelog-web:1.0.0
+    container_name: corelog-web
+    ports:
+      # Host port is configurable: ${WEB_PORT} (8080 is often taken by other
+      # local stacks; the container always listens on 8080 internally).
+      - "${WEB_PORT:-8085}:8080"
+    environment:
+      # Where nginx forwards /api and /hubs. Resolved lazily at request time,
+      # so the dashboard boots even if CoreLog is not running yet.
+      # `host.docker.internal` reaches a CoreLog backend running on the host
+      # (e.g. the hexagonal-architecture compose stack on :8090). Override with
+      # CORELOG_UPSTREAM when CoreLog shares this compose network.
+      CORELOG_UPSTREAM: ${CORELOG_UPSTREAM:-http://host.docker.internal:8090}
+      # Docker's embedded DNS. In Kubernetes set this to the cluster DNS IP.
+      NGINX_RESOLVER: ${NGINX_RESOLVER:-127.0.0.11}
+    depends_on:
+      - otel-collector
+    restart: unless-stopped
+    labels:
+      app.kubernetes.io/name: corelog-web
+      app.kubernetes.io/part-of: corelog
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector — single ingress for every signal of the stack.
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    container_name: corelog-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus exporter (scraped below)
+    depends_on:
+      - loki
+      - tempo
+    restart: unless-stopped
+    labels:
+      app.kubernetes.io/name: otel-collector
+      app.kubernetes.io/part-of: corelog
+
+  # ---------------------------------------------------------------------------
+  # Loki — log backend (receives logs from the collector).
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: corelog-loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    labels:
+      app.kubernetes.io/name: loki
+      app.kubernetes.io/part-of: corelog
+
+  # ---------------------------------------------------------------------------
+  # Tempo — trace backend (receives OTLP traces from the collector).
+  # ---------------------------------------------------------------------------
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: corelog-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo-config.yaml:/etc/tempo.yaml:ro
+    ports:
+      - "3200:3200"   # Tempo API (query); OTLP ingest stays on the compose network
+    restart: unless-stopped
+    labels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/part-of: corelog
+
+  # ---------------------------------------------------------------------------
+  # Prometheus — metrics backend (scrapes the collector's Prometheus exporter).
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: corelog-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+    restart: unless-stopped
+    labels:
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: corelog
+
+  # ---------------------------------------------------------------------------
+  # Grafana — dashboards for logs (Loki), traces (Tempo) and metrics (Prometheus).
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: corelog-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      # ${GRAFANA_PORT} avoids clashing with other local Grafana instances.
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+    restart: unless-stopped
+    labels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/part-of: corelog
+
+volumes:
+  corelog-grafana-data:

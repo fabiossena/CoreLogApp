@@ -1,0 +1,95 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Traces received",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(tempo_distributor_spans_received_total[5m]))",
+          "legendFormat": "spans/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Logs ingested",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(loki_ingester_lines_total[5m]))",
+          "legendFormat": "lines/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Application request rate",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "type": "logs",
+      "title": "CoreLog logs (all services)",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "{service_namespace=\"corelog\"}",
+          "refId": "A"
+        }
+      ],
+      "options": { "showTime": true, "sortOrder": "Descending" }
+    },
+    {
+      "type": "traces",
+      "title": "Recent traces",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "queryType": "nativeSearch",
+          "serviceNames": [],
+          "limit": 20,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "nodeGraph",
+      "title": "Service map",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "targets": [
+        {
+          "queryType": "serviceMap",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["corelog", "observability"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "CoreLog — Logs, Traces & Metrics",
+  "uid": "corelog-observability",
+  "version": 1
+}

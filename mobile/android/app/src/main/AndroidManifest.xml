@@ -1,0 +1,52 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Location: foreground sampling + background tracking while the screen is off -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Android 9+/10+ foreground service with the `location` type (Android 14 requirement) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Persistent notification shown while tracking is ON -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- WorkManager restart/drain jobs -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application
+      android:name=".MainApplication"
+      android:label="@string/app_name"
+      android:icon="@mipmap/ic_launcher"
+      android:roundIcon="@mipmap/ic_launcher_round"
+      android:allowBackup="false"
+      android:theme="@style/AppTheme"
+      android:supportsRtl="true">
+      <activity
+        android:name=".MainActivity"
+        android:label="@string/app_name"
+        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+        android:launchMode="singleTask"
+        android:windowSoftInputMode="adjustResize"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+      </activity>
+
+      <!--
+        Foreground service that collects positions every POSITION_INTERVAL_SECONDS,
+        batches them to POST /api/tracking/events and drains the SQLite offline
+        buffer (positions + high-priority panic queue). Runs independently of the
+        React Native JS thread: the UI can be closed while tracking continues.
+      -->
+      <service
+        android:name=".background.CoreLogLocationService"
+        android:exported="false"
+        android:foregroundServiceType="location" />
+    </application>
+</manifest>

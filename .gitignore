@@ -1,0 +1,51 @@
+# --- Node / JavaScript ----------------------------------------------------
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# --- Environment secrets --------------------------------------------------
+.env
+.env.local
+.env.*.local
+
+# --- Logs -----------------------------------------------------------------
+*.log
+npm-debug.log*
+
+# --- OS / editor ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Native builds --------------------------------------------------------
+mobile/android/app/build/
+mobile/android/app/.cxx/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/ios/Pods/
+mobile/ios/build/
+*.xcuserstate
+
+# --- Docker / local volumes ----------------------------------------------
+grafana-data/
+prometheus-data/
+
+# --- Mobile secrets / local config ---------------------------------------
+mobile/android/keystore.properties
+mobile/android/keystore/*.jks
+mobile/android/keystore/*.keystore
+mobile/android/local.properties
+mobile/android/app/google-services.json
+mobile/ios/CoreLogMobile/GoogleService-Info.plist
+mobile/ios/ExportOptions.plist
+
+# --- Local artifacts / UI dumps ------------------------------------------
+ui*.xml
+app-screenshot.png
+*.aab
+*.ipa

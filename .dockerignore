@@ -1,0 +1,16 @@
+# Build context is the repository root (Dockerfile.web only needs web/).
+**/node_modules
+# `web/dist` is intentionally NOT ignored: docker/Dockerfile.runtime assembles
+# an offline verification image from a host-built bundle.
+**/build
+**/.git
+**/.env
+**/*.log
+**/coverage
+mobile
+docs
+deploy
+observability
+docker-compose.yml
+README.md
+.github

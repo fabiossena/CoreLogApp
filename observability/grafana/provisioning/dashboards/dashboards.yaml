@@ -1,0 +1,16 @@
+# ---------------------------------------------------------------------------
+# Grafana dashboard provisioning — loads every JSON file from ./dashboards.
+# ---------------------------------------------------------------------------
+apiVersion: 1
+
+providers:
+  - name: CoreLog
+    orgId: 1
+    folder: CoreLog
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

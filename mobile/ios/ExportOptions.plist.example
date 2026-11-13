@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Copy to ios/ExportOptions.plist and fill in your Team ID.
+	     `method`: app-store-connect (Xcode 15+) or app-store (older). -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>teamID</key>
+	<string>YOUR_TEAM_ID</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>stripSwiftSymbols</key>
+	<true/>
+	<key>compileBitcode</key>
+	<false/>
+</dict>
+</plist>

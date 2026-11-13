@@ -1,0 +1,43 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 35
+        targetSdkVersion = 34
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.25"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        // Only applied when app/google-services.json exists (FCM).
+        classpath("com.google.gms:google-services:4.4.3")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+// ---------------------------------------------------------------------------
+// JVM target alignment
+//
+// @bglocation/react-native declares Kotlin jvmTarget = 21, while the React
+// Native Android plugin compiles that module's Java with target 17. Gradle's
+// JVM-target validation fails on the mismatch, and 21-bytecode would also sit
+// outside the Java 17 level used by the rest of the build. Kotlin has no
+// Java-21-only APIs here, so align Kotlin with the Java target.
+// ---------------------------------------------------------------------------
+gradle.projectsEvaluated {
+    def bglocation = rootProject.findProject(':bglocation_react-native')
+    if (bglocation != null) {
+        bglocation.tasks.configureEach { task ->
+            if (task.name.endsWith('Kotlin') && task.hasProperty('kotlinOptions')) {
+                task.kotlinOptions.jvmTarget = '17'
+            }
+        }
+    }
+}

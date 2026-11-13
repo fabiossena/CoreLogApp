@@ -1,0 +1,149 @@
+# ---------------------------------------------------------------------------
+# OpenTelemetry Collector — Deployment + Service (mirrors docker-compose).
+# In-cluster OTLP endpoints: gRPC :4317, HTTP :4318.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: corelog
+  labels:
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/part-of: corelog
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 400
+        spike_limit_mib: 100
+      batch:
+        timeout: 5s
+        send_batch_size: 512
+      resource:
+        attributes:
+          - key: deployment.environment
+            value: production
+            action: upsert
+          - key: service.namespace
+            value: corelog
+            action: upsert
+
+    exporters:
+      otlphttp/loki:
+        endpoint: http://loki.corelog.svc.cluster.local:3100/otlp
+        encoding: proto
+      otlp/tempo:
+        endpoint: tempo.corelog.svc.cluster.local:4317
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        resource_to_telemetry_conversion:
+          enabled: true
+      debug:
+        verbosity: basic
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [otlp/tempo, debug]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [otlphttp/loki, debug]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [prometheus, debug]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: corelog
+  labels:
+    app: otel-collector
+    app.kubernetes.io/part-of: corelog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+        app.kubernetes.io/part-of: corelog
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.114.0
+          args: ["--config=/etc/otelcol/config.yaml"]
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: prom-exporter
+              containerPort: 8889
+            - name: health
+              containerPort: 13133
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: corelog
+  labels:
+    app: otel-collector
+    app.kubernetes.io/part-of: corelog
+spec:
+  type: ClusterIP
+  selector:
+    app: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+    - name: prometheus
+      port: 8889
+      targetPort: prom-exporter

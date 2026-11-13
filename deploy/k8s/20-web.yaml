@@ -1,0 +1,108 @@
+# ---------------------------------------------------------------------------
+# CoreLog web dashboard — Deployment + Service.
+# Same image as docker-compose (built by Dockerfile.web).
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: corelog-web
+  namespace: corelog
+  labels:
+    app: corelog-web
+    app.kubernetes.io/part-of: corelog
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: corelog-web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: corelog-web
+        app.kubernetes.io/part-of: corelog
+      annotations:
+        # Roll pods when configuration changes.
+        checksum/config: replace-me-on-config-change
+    spec:
+      containers:
+        - name: web
+          # Replace <registry> before applying (see README "Kubernetes").
+          image: corelog-web:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: corelog-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: corelog-web
+  namespace: corelog
+  labels:
+    app: corelog-web
+    app.kubernetes.io/part-of: corelog
+spec:
+  type: ClusterIP
+  selector:
+    app: corelog-web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Optional public entry point (adjust the host for your ingress controller).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: corelog-web
+  namespace: corelog
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: corelog.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: corelog-web
+                port:
+                  number: 8080

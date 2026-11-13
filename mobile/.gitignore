@@ -1,0 +1,27 @@
+node_modules/
+npm-debug.log
+.env
+coverage/
+android/.gradle/
+android/app/build/
+ios/build/
+ios/Pods/
+*.tsbuildinfo
+
+# --- Android release secrets -------------------------------------------------
+android/keystore.properties
+android/keystore/*.jks
+android/keystore/*.keystore
+!android/app/debug.keystore
+android/app/google-services.json
+
+# --- iOS release secrets -----------------------------------------------------
+ios/CoreLogMobile/GoogleService-Info.plist
+ios/ExportOptions.plist
+ios/*.mobileprovision
+ios/*.p12
+
+# --- Build artifacts ---------------------------------------------------------
+*.aab
+*.ipa
+*.apk

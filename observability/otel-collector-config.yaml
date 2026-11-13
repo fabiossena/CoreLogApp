@@ -1,0 +1,92 @@
+# ---------------------------------------------------------------------------
+# OpenTelemetry Collector — configuration
+#
+# Single ingress for every signal of the CoreLog stack:
+#   receivers : OTLP (gRPC :4317, HTTP :4318) — used by web, mobile (dev) and
+#               the .NET CoreLog backend (Serilog -> OpenTelemetry).
+#   processors: batch + memory limiter (production hygiene).
+#   exporters : Loki (logs), Tempo (traces), Prometheus (metrics).
+#
+# To swap in SigNoz / Jaeger / Datadog, replace the corresponding exporter
+# below — nothing else in the stack has to change.
+# ---------------------------------------------------------------------------
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Optional: scrape the collector's own metrics for self-observability.
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: otel-collector
+          scrape_interval: 15s
+          static_configs:
+            - targets: [0.0.0.0:8888]
+
+processors:
+  # Never let a burst of spans exhaust the container memory.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+
+  # Batch telemetry to keep exporter connections cheap.
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+  # Attach deployment metadata to every signal.
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: local
+        action: upsert
+      - key: service.namespace
+        value: corelog
+        action: upsert
+
+exporters:
+  # --- Logs -> Loki (Loki 3.x natively ingests OTLP at /otlp) --------------
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    encoding: proto
+
+  # --- Traces -> Tempo -----------------------------------------------------
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # --- Metrics -> Prometheus (scraped by the prometheus service) -----------
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # --- Logs/traces also go to the console in local development ------------
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/tempo, debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/loki, debug]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus, debug]

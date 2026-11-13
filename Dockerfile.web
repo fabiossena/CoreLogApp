@@ -1,0 +1,64 @@
+# ===========================================================================
+# CoreLog web dashboard — multi-stage build.
+#
+#   docker build -f Dockerfile.web -t corelog-web:1.0.0 .
+#
+# Stage 1: install dependencies and produce the static bundle with Vite.
+# Stage 2: serve the bundle with nginx and reverse-proxy /api + /hubs to the
+#          CoreLog backend, so the browser only ever talks to one origin.
+# ===========================================================================
+
+# Base images are overridable so CI/CD can pin them by digest and air-gapped
+# environments can use mirror tags.
+ARG NODE_IMAGE=node:20-alpine
+ARG NGINX_IMAGE=nginx:1.27-alpine
+
+# ---------------------------------------------------------------------------
+# Stage 1 — build
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS build
+
+WORKDIR /app
+
+# Install dependencies first so the layer is cached across source changes.
+COPY web/package*.json ./
+RUN npm ci --no-audit --no-fund
+
+# Build-time configuration (Vite inlines VITE_* variables into the bundle).
+#
+# `same-origin` makes the browser call its own origin; nginx then proxies
+# /api and /hubs to CORELOG_UPSTREAM (see docker/nginx.conf.template).
+ARG CORELOG_BASE_URL=same-origin
+ARG SIGNALR_HUB_URL=/hubs/tracking
+ARG VITE_CORELOG_BASE_URL=${CORELOG_BASE_URL}
+ARG VITE_SIGNALR_HUB_URL=${SIGNALR_HUB_URL}
+ARG VITE_OTEL_ENDPOINT=http://localhost:4318
+ENV VITE_CORELOG_BASE_URL=${VITE_CORELOG_BASE_URL} \
+    VITE_SIGNALR_HUB_URL=${VITE_SIGNALR_HUB_URL} \
+    VITE_OTEL_ENDPOINT=${VITE_OTEL_ENDPOINT}
+
+COPY web/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2 — serve
+# ---------------------------------------------------------------------------
+FROM ${NGINX_IMAGE} AS runtime
+
+# SPA fallback + reverse proxy for the CoreLog REST/SignalR endpoints.
+# Rendered by the nginx image's envsubst at startup so CORELOG_UPSTREAM is
+# supplied from the environment (docker-compose / k8s ConfigMap).
+COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+
+ENV CORELOG_UPSTREAM=http://corelog:8090 \
+    NGINX_RESOLVER=127.0.0.11
+
+# Static bundle produced by the build stage.
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

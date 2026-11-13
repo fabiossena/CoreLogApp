@@ -1,0 +1,39 @@
+{
+  "name": "corelog-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CoreLog fleet-tracking mobile app (React Native, MVVM + layered architecture)",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-firebase/analytics": "^21.14.0",
+    "@react-native-firebase/app": "^21.14.0",
+    "@react-native-firebase/messaging": "^21.14.0",
+    "axios": "^1.7.9",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-sqlite-storage": "^6.0.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "15.0.1",
+    "@react-native-community/cli-platform-android": "15.0.1",
+    "@react-native-community/cli-platform-ios": "15.0.1",
+    "@react-native/babel-preset": "0.76.9",
+    "@react-native/metro-config": "0.76.9",
+    "@types/jest": "^29.5.14",
+    "@types/react": "^18.2.6",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.15",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
