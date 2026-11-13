@@ -1,34 +1,33 @@
-# CoreLog Web — ASP.NET Core MVC (.NET 8)
+# CoreLog Web — ASP.NET Core MVC
 
-Dashboard server-rendered em **ASP.NET Core MVC (.NET 8 LTS)** para operar a
-frota CoreLog: monitoramento em tempo real, eventos de pânico, envio de comandos
-e administração de rastreadores.
+Server-rendered dashboard for the CoreLog fleet API: live positions, panic
+events, command dispatch and tracker administration.
 
-> O dashboard anterior (React + Vite) foi substituído por MVC. Não há Node/npm
-> nesta pasta: o build é `dotnet build`, e as páginas são Razor renderizadas no
-> servidor.
+> The previous dashboard (React + Vite) was replaced by **ASP.NET Core MVC
+> (.NET 8)**. There is no Node/npm in this folder: build with `dotnet build`
+> and pages are rendered on the server with Razor.
 
 ## Stack
 
-| Camada | Tecnologia |
+| Layer | Technology |
 |---|---|
 | Web | ASP.NET Core MVC, Razor Views, Tag Helpers |
-| HTTP | `HttpClient` tipado + `System.Text.Json` |
-| Tempo real | SignalR JS client (navegador) + Leaflet |
-| Observabilidade | OpenTelemetry (traces + métricas OTLP) |
-| Testes | xUnit + `HttpMessageHandler` fake (`web.Tests/`) |
+| HTTP | Typed `HttpClient` + `System.Text.Json` |
+| Real time | SignalR JS client (browser) + Leaflet |
+| Observability | OpenTelemetry (traces + metrics over OTLP) |
+| Tests | xUnit + fake `HttpMessageHandler` (`web.Tests/`) |
 | Deploy | Docker multi-stage (`Dockerfile.web`) + Kubernetes |
 
-## Arquitetura
+## Architecture
 
 ```
 ┌──────────────────────── PRESENTATION (MVC) ─────────────────────────┐
 │ Controllers: HomeController · PanicController · CommandCenter       │
 │ Views: Home/Index · Panic/Index · CommandCenter/Index               │
 │ wwwroot: site.css · dashboard.js · command-center.js                │
-│ Browser: Leaflet + @microsoft/signalr (arquivos locais em lib/)     │
+│ Browser: Leaflet + @microsoft/signalr (local files under lib/)      │
 └──────────────────────────────────┬───────────────────────────────────┘
-                                   │ ICoreLogApi (porta tipada)
+                                   │ ICoreLogApi (typed port)
 ┌──────────────────────────────────▼───────────────────────────────────┐
 │ SERVICES / DATA                                                     │
 │ CoreLogApiClient : HttpClient + snake_case JSON + problem+json       │
@@ -39,15 +38,15 @@ e administração de rastreadores.
                 CoreLog REST /api/...        SignalR /hubs/tracking
 ```
 
-- **Controllers** orquestram serviços e montam ViewModels; não fazem I/O direto.
-- **Razor Views** são server-rendered; o JavaScript só cuida do mapa e dos
-  eventos em tempo real.
-- **CoreLogApiClient** centraliza URL, serialização `snake_case`, timeouts e
-  tratamento de erros `problem+json`.
-- **Antiforgery** em todos os POSTs de formulário; validação no servidor.
-- **OpenTelemetry** instrumenta ASP.NET Core e `HttpClient` e exporta via OTLP.
+- **Controllers** orchestrate services and build ViewModels; no direct I/O.
+- **Razor Views** are server-rendered; JavaScript only handles the map and
+  real-time events.
+- **CoreLogApiClient** centralizes base URL, `snake_case` serialization,
+  timeouts and `problem+json` errors.
+- **Antiforgery** protects every form POST; validation runs on the server.
+- **OpenTelemetry** instruments ASP.NET Core and `HttpClient` and exports OTLP.
 
-### Estrutura
+### Structure
 
 ```
 web/
@@ -56,52 +55,52 @@ web/
 ├── appsettings.json              # CoreLog:BaseUrl / HubUrl / Operator
 ├── Controllers/
 │   ├── HomeController.cs         # dashboard
-│   ├── PanicController.cs        # listar/reconhecer pânicos
-│   └── CommandCenterController.cs# comandos + rastreadores
-├── Models/                       # DTOs, requests e ViewModels
+│   ├── PanicController.cs        # list/acknowledge panics
+│   └── CommandCenterController.cs# commands + trackers
+├── Models/                       # DTOs, requests and ViewModels
 ├── Services/                     # ICoreLogApi + CoreLogApiClient
-├── Views/                        # Razor (Layout + páginas)
+├── Views/                        # Razor (Layout + pages)
 └── wwwroot/
     ├── css/site.css
-    ├── js/dashboard.js           # mapa + SignalR
-    ├── js/command-center.js      # formulários + CommandAcked
-    └── lib/                      # signalr.js e leaflet (sem CDN)
+    ├── js/dashboard.js           # map + SignalR
+    ├── js/command-center.js      # forms + CommandAcked
+    └── lib/                      # signalr.js and leaflet (no CDN)
 ```
 
-## Páginas
+## Pages
 
-| Rota | Funcionalidade |
+| Route | Features |
 |---|---|
-| `/` | Mapa da frota, lista de veículos e banner de pânicos pendentes; posições/status via SignalR |
-| `/panics` | Filtro pendentes/reconhecidos/todos + reconhecimento com operador |
-| `/commands` | Enviar comando, histórico do veículo, registrar/remover rastreadores |
+| `/` | Fleet map, device list and pending-panic banner; positions/status over SignalR |
+| `/panics` | Filter pending/acknowledged/all + acknowledge as an operator |
+| `/commands` | Dispatch a command, view history, register/remove trackers |
 
-Os dados iniciais vêm do REST (`GET /api/devices`, `/api/panic`, `/api/trackers`)
-e as atualizações chegam do hub `/hubs/tracking` (`PositionReceived`,
-`PanicReceived`, `DeviceStatusChanged`, `CommandAcked`).
+Initial data comes from REST (`GET /api/devices`, `/api/panic`, `/api/trackers`);
+updates arrive from `/hubs/tracking` (`PositionReceived`, `PanicReceived`,
+`DeviceStatusChanged`, `CommandAcked`).
 
-## Rodar localmente
+## Run locally
 
-### 1. Mock do contrato (sem backend)
+### 1. Contract mock (no backend)
 
-Na raiz do repositório:
+From the repository root:
 
 ```bash
 node tools/mock-corelog/server.mjs --port 8099
 ```
 
-O `appsettings.json` já aponta para `http://localhost:8099`.
+`appsettings.json` already points to `http://localhost:8099`.
 
-### 2. Aplicação MVC
+### 2. MVC application
 
 ```bash
-dotnet run --project web/CoreLog.Web.csproj --urls http://localhost:8096
+dotnet run --project web/CoreLog.Web.csproj --urls http://localhost:8086
 ```
 
-Abra <http://localhost:8096>. O endpoint de saúde fica em `/health`.
+Open <http://localhost:8086>. Health check: `/health`.
 
-Para usar um CoreLog real, altere `web/appsettings.json` ou use variáveis de
-ambiente:
+To use a real CoreLog backend, edit `web/appsettings.json` or use environment
+variables:
 
 ```bash
 CoreLog__BaseUrl=http://localhost:8090 \
@@ -109,30 +108,30 @@ CoreLog__HubUrl=http://localhost:8090/hubs/tracking \
 dotnet run --project web/CoreLog.Web.csproj
 ```
 
-| Chave | Padrão | Uso |
+| Key | Default | Purpose |
 |---|---|---|
-| `CoreLog:BaseUrl` / `CoreLog__BaseUrl` | `http://localhost:8099` | REST usado pelo servidor |
-| `CoreLog:HubUrl` / `CoreLog__HubUrl` | `http://localhost:8099/hubs/tracking` | hub usado pelo **navegador** |
-| `CoreLog:Operator` / `CoreLog__Operator` | `web.operator` | identidade no ack de pânico |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | collector OTLP |
+| `CoreLog:BaseUrl` / `CoreLog__BaseUrl` | `http://localhost:8099` | REST used by the server |
+| `CoreLog:HubUrl` / `CoreLog__HubUrl` | `http://localhost:8099/hubs/tracking` | hub used by the **browser** |
+| `CoreLog:Operator` / `CoreLog__Operator` | `web.operator` | identity for panic acknowledgement |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP collector |
 
-> `HubUrl` precisa ser acessível a partir do navegador. Em Docker/K8s, o
-> `BaseUrl` pode usar DNS interno, mas o `HubUrl` deve ser uma URL pública (ou
-> roteada pelo Ingress, como em `deploy/k8s/20-web.yaml`).
+> `HubUrl` must be reachable from the browser. In Docker/K8s the `BaseUrl` can
+> use an internal DNS name, but `HubUrl` must be public (or routed by an
+> Ingress, as in `deploy/k8s/20-web.yaml`).
 
-## Testes
+## Tests
 
 ```bash
 dotnet test web.Tests/CoreLog.Web.Tests.csproj
 ```
 
-Cobrem o `CoreLogApiClient`: envelope de lista, serialização `snake_case` do
-comando, `problem+json` em erros e `DELETE 204`.
+Cover the `CoreLogApiClient`: list envelope, `snake_case` command payload,
+`problem+json` errors and `DELETE 204`.
 
 ## Docker
 
 ```bash
-# a partir da raiz do repositório
+# from the repository root
 docker build -f Dockerfile.web -t corelog-web:1.0.0 .
 
 docker run --rm -p 8085:8080 \
@@ -141,17 +140,17 @@ docker run --rm -p 8085:8080 \
   corelog-web:1.0.0
 ```
 
-Ou `docker compose up -d web` (porta `8085`). A imagem é multi-stage
+Or `docker compose up -d web` (port `8085`). The image is multi-stage
 (`dotnet/sdk:8.0` → `dotnet/aspnet:8.0`).
 
 ## Kubernetes
 
-Os manifests seguem em `deploy/k8s/`:
+Manifests live in `deploy/k8s/`:
 
-- `01-configmap.yaml` contém `CoreLog__BaseUrl`, `CoreLog__HubUrl`,
-  `CoreLog__Operator` e o endpoint OTLP.
-- `20-web.yaml` roda 2 réplicas com probes em `/health` e Ingress; o path
-  `/hubs` é roteado para o Service `corelog-api` para o navegador conectar no
+- `01-configmap.yaml` contains `CoreLog__BaseUrl`, `CoreLog__HubUrl`,
+  `CoreLog__Operator` and the OTLP endpoint.
+- `20-web.yaml` runs 2 replicas with `/health` probes and an Ingress; the
+  `/hubs` path is routed to the `corelog-api` Service so the browser can reach
   SignalR.
 
 ```bash
@@ -160,12 +159,12 @@ docker push <registry>/corelog-web:1.0.0
 kubectl apply -k deploy/k8s
 ```
 
-## Decisões
+## Decisions
 
-| Decisão | Motivo |
+| Decision | Why |
 |---|---|
-| **MVC + Razor** | Dashboard autenticado/administrativo se beneficia de renderização no servidor, formulários com antiforgery e menos JavaScript. |
-| **HttpClient tipado** | Timeout, base address e serialização configurados uma vez no DI. |
-| **Sem SPA/npm** | Build e deploy mais simples; SignalR/Leaflet são estáticos e versionados em `wwwroot/lib`. |
-| **OpenTelemetry** | Mesmo collector/dashboards do backend e do app mobile. |
-| **Views compiladas** | `RazorGenerate` com `TargetPath` no `.csproj` evita o aviso RSG002 e embute as views no assembly. |
+| **MVC + Razor** | Administrative dashboards benefit from server rendering, antiforgery forms and less JavaScript. |
+| **Typed `HttpClient`** | Base address, timeout and JSON configured once in DI. |
+| **No SPA/npm** | Simpler build/deploy; SignalR/Leaflet are static and versioned in `wwwroot/lib`. |
+| **OpenTelemetry** | Same collector/dashboards as the backend and mobile app. |
+| **Compiled views** | `RazorGenerate` with `TargetPath` in the `.csproj` avoids RSG002 and embeds views in the assembly. |
