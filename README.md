@@ -119,20 +119,27 @@ Start the emulator/device, then Metro in one terminal and the app in another:
 npx react-native start --port 8088
 
 # terminal 2 (inside mobile/)
+adb reverse tcp:8081 tcp:8088
 npm run android
 ```
 
-If Metro is on 8088 instead of the default 8081, make the app reach it:
+The `adb reverse` maps the port the debug app expects (8081) to Metro on 8088.
+If you prefer to run Metro on the default 8081 and the port is free, skip the
+reverse and just run `npm run android`.
 
-```bash
-adb reverse tcp:8081 tcp:8088
-```
-
-Or set the debug host explicitly:
+Alternatively, set the debug host explicitly:
 
 ```bash
 adb shell run-as com.corelog.mobile \
   sh -c 'mkdir -p shared_prefs && echo "<map><string name=\"debug_http_host\">10.0.2.2:8088</string></map>" > shared_prefs/com.corelog.mobile_preferences.xml'
+```
+
+On Windows, if Gradle fails with `Could not move temporary workspace`, build
+from `mobile/android` with a short project cache:
+
+```bash
+cd mobile/android
+.\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081 --project-cache-dir=C:\gr\corelog
 ```
 
 Grant location permissions (required for background tracking):
